@@ -72,10 +72,9 @@ size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream) {
 	return written;
 }
 
-std::string get_file_name(char * url, struct sockaddr_in client, char * index)
+std::string get_file_name(char * url, char * client_ip, char * index)
 {
 	int pos;
-	char client_ip[40];
 	std::string s(url);
 	std::string delimiter = "/";
 	std::string token = s.substr(0, s.find(delimiter));
@@ -85,27 +84,25 @@ std::string get_file_name(char * url, struct sockaddr_in client, char * index)
 		// cout << s.substr(last, next-last) << endl; 
 		last = next + 1; 
 	} 
-	cout << "substring:"<<s.substr(last) << endl;
-	inet_ntop(AF_INET,(void*)&client.sin_addr,client_ip,40);
+	// cout << "substring:"<<s.substr(last) << endl;
 	std::string client_ip_string(client_ip);
-	cout<<"client ip string :"<<client_ip_string<<endl;
+	// cout<<"client ip string :"<<client_ip_string<<endl;
 	std::string index_string(index);
-	cout<<"index string"<<index<<endl;
+	// cout<<"index string"<<index<<endl;
 	std::string filename= client_ip_string +".part"+index_string + +"-"+s.substr(last);
-	// cout<<"filean:"<<filename<<endl;
 	return filename;
 }
 
-std::string download_file(char * url, char * range, char * index, struct sockaddr_in client)
+std::string download_file(char * url, char * range, char * index, char * client_ip)
 {
 	CURL *curl;
 	FILE *fw,*fr;
 	CURLcode res;
 	int readfd,connfd_read,n;
-	std::string outfilename_string = get_file_name(url, client,index);
+	std::string outfilename_string = get_file_name(url,client_ip, index);
 	const char * outfilename = outfilename_string.c_str();
-	cout<<"outfilename:"<<outfilename<<endl;
-	cout<<range<<endl;
+	cout<<"downloading to outfilename:"<<outfilename<<endl;
+	cout<<"range: "<<range<<endl;
 	
 	struct progress p;
 	curl = curl_easy_init();
@@ -129,7 +126,7 @@ std::string download_file(char * url, char * range, char * index, struct sockadd
 		cout<<curl_easy_strerror(res)<<endl;
 		fclose(fw);
 	}
-	cout<<"Done downloading."<<endl;
+	cout<<"Done downloading of :"<<index<<endl;
 	return outfilename_string;
 }
 
@@ -142,7 +139,7 @@ void send_file(int writefd,std::string fs_name){
 		cout<<"ERROR: File "<<fs_name <<"not found.\n" ;
 		exit(1);
 	}
-	cout<<"Writing file\n";
+	cout<<"Writing file: "<<fs_name;
 	memset(sdbuf,0,LENGTH);
 	int fs_block_sz; 
 	//int success = 0;
@@ -160,125 +157,70 @@ void send_file(int writefd,std::string fs_name){
 
 		memset(sdbuf,0, LENGTH);
 	}
-	cout<<"File size sent: "<<total_file_size<<endl;
-	cout<<"Ok File "<< fs_name<<" from Client was Sent!\n" ;
+	cout<<"File sent. Total size sent: "<<total_file_size<<endl;
+	// cout<<"Ok File "<< fs_name<<" from Client was Sent!\n" ;
 
 }
 
-void signal_handler(int sig)
+
+static void exit_cleanup(void)
 {
 	int n = sysconf(_SC_OPEN_MAX);
-	for(int i= 0; i < n; i++)
+	for(int i = 0; i < n; i++)
 	close(i);
-	exit(0);
 }
 
-int main()
+int main(int argc, char * argv[])
 {
-	// char * url = "http://dl1.irani-dl.com/serial/The%20Legend%20of%20Korra/Season%201/The%20Legend%20of%20Korra-S01E01E02.720p.WEB-DL.x264(www.irani-dl.ir).mkv";
-	// char * range = "0-100";
-	// char * index = "0";
-	// download_file(url, range, index, client);
-	signal(SIGINT, signal_handler);
-	index_global = new char[50];
-	// Descriptors to receive the url details
-	int readfd,connfd_read;
-	struct sockaddr_in addr_read,client_read;
+	atexit(exit_cleanup);
+	// cout<<"slave forked."<<endl;
+	//0-connfd_read_string, 1-connfd_write_string, 2-client_ip
+	std::string connfd_read_string(argv[0]);
+	std::string connfd_write_string(argv[1]);
+	char * client_ip = argv[2];
 
-	// Descriptors to send the file back to the master
-	int writefd, connfd_write;
-	struct sockaddr_in addr_write,client_write;
+	int connfd_read = stoi(connfd_read_string);
+	int connfd_write = stoi(connfd_write_string);
 
-	socklen_t len;
-	
-	readfd=socket(AF_INET,SOCK_STREAM,0);
-	if(readfd < 0)
-	{
-		cout<<"[SLAVE] "<<"socket created."<<endl;
+	char *buf =new char[12];
+	char *buf_temp=buf;
+	read(connfd_read,buf,12);
+
+	int *url_length=new int;
+	int *range_length=new int;
+	int *index_length=new int;
+	memcpy(url_length,buf,4);
+	buf=buf+4;			
+	memcpy(range_length,buf,4);
+	buf=buf+4;			
+	memcpy(index_length,buf,4);
+
+	int total_length=*url_length+*range_length+*index_length;
+
+	int n;
+	char *new_buf=new char[total_length];
+	char *new_buf_temp=new_buf;
+	int total = 0;
+	unsigned char temp1[200];
+	while((n=read(connfd_read,temp1,200))!=0){
+		std::memcpy(new_buf+total, temp1, n);
+		total += n;
 	}
-	addr_read.sin_family=AF_INET;
-	addr_read.sin_port=htons(9515);
-	addr_read.sin_addr.s_addr=INADDR_ANY;
-	bind(readfd, (struct sockaddr *) &addr_read,sizeof(addr_read));
-	cout<<"[SLAVE] "<<"Bind successfull for reading on 9515\n"<<endl;
-	listen(readfd,5);
-	int so_reuse = 1;
-	setsockopt(readfd,SOL_SOCKET,SO_REUSEADDR,&so_reuse,sizeof(so_reuse));
-	//Socket for writing on 9516
-	writefd=socket(AF_INET,SOCK_STREAM,0);
-	if(writefd < 0)
-	{
-		cout<<"[SLAVE] "<<"socket created."<<endl;
-	}
 
-	addr_write.sin_family=AF_INET;
-	addr_write.sin_port=htons(9516);
-	addr_write.sin_addr.s_addr=INADDR_ANY;
-	bind(writefd, (struct sockaddr *) &addr_write,sizeof(addr_write));
-	cout<<"[SLAVE] "<<"Bind successfull for write on 9516\n"<<endl;
-	listen(writefd,5);
+	// std::cout<<"[SLAVE] "<<total<<std::endl;
+	char *url=new char[*url_length+1];
+	char *range=new char[*range_length+1];
+	char *index=new char[*index_length+1];
 
-	for(;;)
-	{
-		// Accept connection to read on 9515
-		len=sizeof(client_read);
-		connfd_read=accept(readfd,(struct sockaddr *) &client_read,&len);
-		cout<<"[SLAVE] "<<"Connection accepted on 9515"<<endl;
-		char *buf =new char[12];
-		char *buf_temp=buf;
-		read(connfd_read,buf,12);
+	url[*url_length]='\0';
+	range[*range_length]='\0';
+	index[*index_length]='\0';
 
-		// Accept connection to write on 9516
-		len=sizeof(client_write);
-		connfd_write=accept(writefd,(struct sockaddr *) &client_write,&len);
-		cout<<"[SLAVE] "<<"Connection accepted on 9516"<<endl;
-
-/*		int *url_length=(int *)buf;
-		std::cout<<"[SLAVE] "<<*url_length<<std::endl;
-		buf=buf+4;			
-		int *range_length=(int *)buf;
-		std::cout<<"[SLAVE] "<<*range_length<<std::endl;
-		buf=buf+4;			
-		int *index_length=(int *)buf;
-		std::cout<<"[SLAVE] "<<*index_length<<std::endl;
-*/
-		int *url_length=new int;
-		int *range_length=new int;
-		int *index_length=new int;
-		memcpy(url_length,buf,4);
-		buf=buf+4;			
-		memcpy(range_length,buf,4);
-		buf=buf+4;			
-		memcpy(index_length,buf,4);
-
-		int total_length=*url_length+*range_length+*index_length;
-
-		int n;
-		char *new_buf=new char[total_length];
-		char *new_buf_temp=new_buf;
-		int total = 0;
-		unsigned char temp1[200];
-		while((n=read(connfd_read,temp1,200))!=0){
-			std::memcpy(new_buf+total, temp1, n);
-			total += n;
-		}
-
-		std::cout<<"[SLAVE] "<<total<<std::endl;
-		char *url=new char[*url_length+1];
-		char *range=new char[*range_length+1];
-		char *index=new char[*index_length+1];
-	
-		url[*url_length]='\0';
-		range[*range_length]='\0';
-		index[*index_length]='\0';
-
-		
-
-		memcpy(url,new_buf,*url_length);
-		new_buf+=*url_length;
-		memcpy(range,new_buf,*range_length);
-		new_buf+=*range_length;
-		memcpy(index,new_buf,*index_length);
+	memcpy(url,new_buf,*url_length);
+	new_buf+=*url_length;
+	memcpy(range,new_buf,*range_length);
+	new_buf+=*range_length;
+	memcpy(index,new_buf,*index_length);
 
 		//Index_global necessary for making the POST request.
 		memcpy(index_global,index,*index_length);

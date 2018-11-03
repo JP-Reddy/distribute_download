@@ -117,7 +117,7 @@ int main(int argc, char * argv[])
     
     if( (connect(writefd, (sockaddr*)&servaddr_write, sizeof(servaddr_write))) < 0)
     {
-        cout<<"write connect error"<<endl;
+        cout<<"write connect error, "<<"index :"<<argv[3]<<endl;
         exit(0);
     }
     // else
@@ -127,7 +127,7 @@ int main(int argc, char * argv[])
 
     if( (connect(readfd, (sockaddr*)&servaddr_read, sizeof(servaddr_read))) < 0)
     {
-        cout<<"read connect error"<<endl;
+        cout<<"read connect error"<<"index :"<<argv[3]<<endl;
         exit(0);
     }
 
