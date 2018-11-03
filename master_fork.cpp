@@ -1,4 +1,3 @@
-
 //Socket headers.
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -13,9 +12,13 @@
 //C headers. 
 #include <stdlib.h>
 #include <string.h>
+#include<fcntl.h>
 
 using std::cout;
 using std::endl;
+
+#define WRITE_PORT 9515
+#define READ_PORT 9516
 
 typedef struct download_url
 {
@@ -24,12 +27,61 @@ typedef struct download_url
     std::string range;
 }download_url;
 
+std::string get_file_name(const char * url,const char * index)
+{
+	int pos;
+	std::string s(url);
+	std::string delimiter = "/";
+	std::string token = s.substr(0, s.find(delimiter));
+    size_t last = 0; 
+    size_t next = 0; 
+    while ((next = s.find(delimiter, last)) != std::string::npos) {
+    	// cout << s.substr(last, next-last) << endl; 
+    	last = next + 1; 
+    } 
+    // cout << "substring:"<<s.substr(last) << endl;
+	std::string index_string(index);
+	// cout<<"index string"<<index<<endl;
+    std::string filename= "part"+index_string +"-"+s.substr(last);
+	// cout<<"filean:"<<filename<<endl;
+	return filename;
+}
+
+void receive_file(int readfd,const char*url,const char*index)
+{
+    int n;
+    char * buf = new char[100];
+    std::string filename_string  = get_file_name(url,index);
+    const char * filename = filename_string.c_str();
+    cout<<"filename :"<<filename<<endl;
+    int file_fd = open(filename,O_WRONLY | O_CREAT | O_TRUNC);
+    if( file_fd < 0)
+    {
+        cout<<"Error opening file"<<endl;
+    }
+    int written  = 0, total = 0;
+
+    while( (n = read(readfd,buf,99))!= 0)
+    {
+        if( ( written = write(file_fd,buf,n) ) < 0)
+        {
+            cout<<"Error writing to file"<<endl;
+            break;
+        }   
+        total += written;
+    }
+    system(("chmod +rw "+filename_string).c_str());
+    cout<<"total bytes written: "<<total<<endl;
+    close(file_fd);
+    close(readfd);
+}
+
 //1 - ip address, 2 - url, 3 - range, 4 - index (for argv)
 int main(int argc, char * argv[])
 {
     cout<<"args 0:"<<argv[0]<<endl;
-    int writefd, n;
-    struct sockaddr_in servaddr;     
+    int writefd,readfd, n;
+    struct sockaddr_in servaddr_write, servaddr_read;     
 
     if( (writefd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
@@ -41,23 +93,48 @@ int main(int argc, char * argv[])
         std::cout<<"Socket created.";
     }
 
-    memset(&servaddr, 0, sizeof(servaddr));
-
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_port = htons(9515);
-    inet_pton(AF_INET, argv[0], &servaddr.sin_addr);    
-	//Sending the masters ip address. 
-    
-    if( (connect(writefd, (sockaddr*)&servaddr, sizeof(servaddr))) < 0)
+    if( (readfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
-        cout<<"connect error"<<endl;
+        std::cout<<"Not able to open socket."<<std::endl;
         exit(0);
     }
     else
     {
-        cout<<"Connected"<<endl;
+        std::cout<<"Socket created.";
     }
 
+    memset(&servaddr_write, 0, sizeof(servaddr_write));
+
+    servaddr_write.sin_family = AF_INET;
+    servaddr_write.sin_port = htons(WRITE_PORT);
+    inet_pton(AF_INET, argv[0], &servaddr_write.sin_addr);    
+
+    servaddr_read.sin_family = AF_INET;
+    servaddr_read.sin_port = htons(READ_PORT);
+    inet_pton(AF_INET, argv[0], &servaddr_read.sin_addr);
+    
+    if( (connect(writefd, (sockaddr*)&servaddr_write, sizeof(servaddr_write))) < 0)
+    {
+        cout<<"write connect error"<<endl;
+        exit(0);
+    }
+    else
+    {
+        cout<<"write Connected"<<endl;
+    }
+
+    if( (connect(readfd, (sockaddr*)&servaddr_read, sizeof(servaddr_read))) < 0)
+    {
+        cout<<"read connect error"<<endl;
+        exit(0);
+    }
+
+    else
+    {
+        cout<<"read Connected"<<endl;
+    }
+
+    
     download_url url_struct;
     // url_struct.url = "http://dl1.irani-dl.com/serial/The%20Legend%20of%20Korra/Season%201/The%20Legend%20of%20Korra-S01E01E02.720p.WEB-DL.x264(www.irani-dl.ir).mkv";
     // url_struct.range = "0-1000";
@@ -101,7 +178,9 @@ int main(int argc, char * argv[])
     delete[] buffer;
     close(writefd);  
 
-    //Waiting for 
+    receive_file(readfd,url,index);
+    //Getting back the chunks of file. 
+    
 
 /*int checksum_size;
     char checksum[1000];
