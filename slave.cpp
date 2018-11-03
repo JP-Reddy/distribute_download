@@ -21,6 +21,52 @@ using std::endl;
 
 #define LENGTH 1024*1024
 
+#define TIMEOPT CURLINFO_TOTAL_TIME
+#define MINIMAL_PROGRESS_FUNCTIONALITY_INTERVAL  2
+
+struct progress {
+  double lastruntime; 
+  CURL *curl;
+};
+
+char* index_global ;
+std::string index_global_string;
+
+
+int xferinfo(void *clientp,   curl_off_t dltotal,   curl_off_t dlnow,   curl_off_t ultotal,   curl_off_t ulnow)
+{
+	struct progress*main_prog = (struct progress *)clientp;
+	CURL *curl = main_prog->curl;
+	double curtime = 0;
+	CURLcode res;
+	curl_easy_getinfo(curl, TIMEOPT, &curtime);
+	if((curtime - main_prog->lastruntime) >= 50)
+	{
+		main_prog->lastruntime = curtime;
+		CURL *curl_post = curl_easy_init();
+		if(curl_post){
+			float percentage = (dlnow*1.0)/dltotal;
+			std::string percentage_string = std::to_string(percentage);
+			std::string jsonObj_string = "{\"percentage\" : " +  percentage_string +"}";
+			//std::cout<<jsonObj_string<<std::endl;
+			const char *jsonObj = jsonObj_string.c_str();
+			/*fprintf(stderr, "UP: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
+				"  DOWN: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
+				"\r\n",
+				ulnow, ultotal, dlnow, dltotal);*/
+			std::string curl_opt_string = "10.16.160.74:9517/progress/"+index_global_string;
+			curl_easy_setopt(curl_post, CURLOPT_URL, curl_opt_string.c_str());
+			curl_easy_setopt(curl_post, CURLOPT_POSTFIELDS, jsonObj);
+			//curl_easy_setopt(curl_post, CURLOPT_POST, 1L);
+			res = curl_easy_perform(curl_post);
+			if(res != CURLE_OK)
+			std::cout<<curl_easy_strerror(res)<<std::endl;
+		}
+		else
+		std::cout<<"Error";
+		} 
+return 0;
+}
 size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream) {
 	size_t written = fwrite(ptr, size, nmemb, stream);
 	return written;
@@ -61,15 +107,21 @@ std::string download_file(char * url, char * range, char * index, struct sockadd
 	cout<<"outfilename:"<<outfilename<<endl;
 	cout<<range<<endl;
 	
-
+	struct progress p;
 	curl = curl_easy_init();
 	 
 	if (curl) 
 	{
+		p.lastruntime = 0;
+		p.curl = curl;
 		fw = fopen(outfilename,"wb");
 		curl_easy_setopt(curl, CURLOPT_URL, url);
+
 		curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 100); 
 		curl_easy_setopt(curl, CURLOPT_RANGE, range);
+		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
+		curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, xferinfo);
+		curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &p);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, fw);
 		res = curl_easy_perform(curl);
@@ -116,16 +168,9 @@ void send_file(int writefd,std::string fs_name){
 void signal_handler(int sig)
 {
 	int n = sysconf(_SC_OPEN_MAX);
-	for(int i = 0; i < n; i++)
+	for(int i= 0; i < n; i++)
 	close(i);
-	execl("./slave", (char *)0);
-}
-
-static void exit_cleanup(void)
-{
-	int n = sysconf(_SC_OPEN_MAX);
-	for(int i = 0; i < n; i++)
-	close(i);
+	exit(0);
 }
 
 int main()
@@ -134,10 +179,9 @@ int main()
 	// char * range = "0-100";
 	// char * index = "0";
 	// download_file(url, range, index, client);
-	atexit(exit_cleanup);
-
+	signal(SIGINT, signal_handler);
+	index_global = new char[50];
 	// Descriptors to receive the url details
-	signal(SIGALRM, signal_handler);
 	int readfd,connfd_read;
 	struct sockaddr_in addr_read,client_read;
 
@@ -158,7 +202,8 @@ int main()
 	bind(readfd, (struct sockaddr *) &addr_read,sizeof(addr_read));
 	cout<<"[SLAVE] "<<"Bind successfull for reading on 9515\n"<<endl;
 	listen(readfd,5);
-
+	int so_reuse = 1;
+	setsockopt(readfd,SOL_SOCKET,SO_REUSEADDR,&so_reuse,sizeof(so_reuse));
 	//Socket for writing on 9516
 	writefd=socket(AF_INET,SOCK_STREAM,0);
 	if(writefd < 0)
@@ -183,14 +228,9 @@ int main()
 		char *buf_temp=buf;
 		read(connfd_read,buf,12);
 
-		//Setting the alarm so that if this connection fails, it 
-		//calls the handler which will clean up and restart the program.
-		alarm(10);
-
 		// Accept connection to write on 9516
 		len=sizeof(client_write);
 		connfd_write=accept(writefd,(struct sockaddr *) &client_write,&len);
-		alarm(0);
 		cout<<"[SLAVE] "<<"Connection accepted on 9516"<<endl;
 
 /*		int *url_length=(int *)buf;
@@ -232,12 +272,18 @@ int main()
 		range[*range_length]='\0';
 		index[*index_length]='\0';
 
+		
+
 		memcpy(url,new_buf,*url_length);
 		new_buf+=*url_length;
 		memcpy(range,new_buf,*range_length);
 		new_buf+=*range_length;
 		memcpy(index,new_buf,*index_length);
 
+		//Index_global necessary for making the POST request.
+		memcpy(index_global,index,*index_length);
+
+		index_global_string = std::string(index_global);
 /*		url=(char *)new_buf;
 		new_buf=new_buf+(*url_length)+1;
 		range=(char *)new_buf;		
