@@ -17,18 +17,18 @@
 using std::cout;
 using std::endl;
 
-#pragma pack(1)
 typedef struct download_url
 {
     std::string url;
-    int index;
+    std::string index;
     std::string range;
 }download_url;
-#pragma pack(0)
 
+//1 - ip address, 2 - url, 3 - range, 4 - index (for argv)
 int main(int argc, char * argv[])
 {
-    int writefd, n,readfd;
+    cout<<"args 0:"<<argv[0]<<endl;
+    int writefd, n;
     struct sockaddr_in servaddr;     
 
     if( (writefd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
@@ -45,69 +45,69 @@ int main(int argc, char * argv[])
 
     servaddr.sin_family = AF_INET;
     servaddr.sin_port = htons(9515);
-    inet_pton(AF_INET, "192.168.0.6", &servaddr.sin_addr);    
-    //Sending the masters ip address. 
+    inet_pton(AF_INET, argv[0], &servaddr.sin_addr);    
+	//Sending the masters ip address. 
     
     if( (connect(writefd, (sockaddr*)&servaddr, sizeof(servaddr))) < 0)
     {
         cout<<"connect error"<<endl;
         exit(0);
     }
+    else
+    {
+        cout<<"Connected"<<endl;
+    }
 
     download_url url_struct;
-    url_struct.url = "http://dl1.irani-dl.com/serial/The%20Legend%20of%20Korra/Season%201/The%20Legend%20of%20Korra-S01E01E02.720p.WEB-DL.x264(www.irani-dl.ir).mkv";
-    url_struct.index = 0;
-    url_struct.range = "0-1000000";
+    // url_struct.url = "http://dl1.irani-dl.com/serial/The%20Legend%20of%20Korra/Season%201/The%20Legend%20of%20Korra-S01E01E02.720p.WEB-DL.x264(www.irani-dl.ir).mkv";
+    // url_struct.range = "0-1000";
+    // url_struct.index = "0";
 
-    int size = url_struct.url.length() + sizeof(int) + url_struct.range.length();
-    std::cout<<size<<std::endl;
-    int bytes;
-    if((bytes = write(writefd, (void *)&url_struct, size)) < size)
+    url_struct.url = std::string(argv[1]);
+    url_struct.range = std::string(argv[2]);
+    url_struct.index = std::string(argv[3]);
+
+    int size = url_struct.url.length() + url_struct.index.length() + url_struct.range.length(),bytes;
+    int url_length = url_struct.url.length();
+    int range_length = url_struct.range.length();
+    int index_length = url_struct.index.length();
+    
+    char * buffer = new char[size+1];
+    memcpy(buffer, (void *)&url_length, 4);    
+    memcpy(buffer+4, (void *)&range_length, 4);
+    memcpy(buffer+8, (void *)&index_length,4);
+
+    if((bytes = write(writefd, (void *)buffer,12)) < 12)
     {
         cout<<"Error writing.";
     }
-    std::cout<<"Sent the url\n";
-    char buf[500];
-        if((bytes = read(writefd,buf, size)) < 0)
-        {
-            cout<<"Error reading.";
-        }
-        
-    std::cout<<buf<<std::endl;
 
-    close(writefd);  
+    const char *url  = url_struct.url.c_str();
+    const char *range = url_struct.range.c_str();
+    const char *index = url_struct.index.c_str();
+    
+    memcpy(buffer, (void *)url, url_length);
+    memcpy(buffer+url_length, (void *)range, range_length);
+    memcpy(buffer+range_length+url_length, (void *)index, index_length);
 
-/*    if( (readfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    if((bytes = write(writefd, (void *)buffer,size)) < size)
     {
-        std::cout<<"Not able to open socket."<<std::endl;
-        exit(0);
+        cout<<"Error writing.";
     }
     else
     {
-        std::cout<<"Socket created to get the file data.";
+        cout<<"bytes written:"<<bytes<<endl;
     }
+    delete[] buffer;
+    close(writefd);  
 
-    memset(&servaddr, 0, sizeof(servaddr));
+    //Waiting for 
 
-    servaddr.sin_family = AF_INET;
-    servaddr.sin_port = htons(9516);
-    inet_pton(AF_INET, "192.168.0.6", &servaddr.sin_addr);    
-	//Sending the masters ip address. 
-    
-    if( (connect(readfd, (sockaddr*)&servaddr, sizeof(servaddr))) < 0)
-    {
-        cout<<"Connect error for receiving"<<endl;
-        exit(0);
-    }
-    
-    // Receive checksum first before getting the actual file.
-    int checksum_size;
+/*int checksum_size;
     char checksum[1000];
     if((checksum_size = read(readfd,checksum,sizeof(checksum)))<=0){
         printf("Checksum Error\n");
         exit(0);
-    }
+    }*/
 
-    
-*/
 }
