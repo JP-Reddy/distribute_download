@@ -8,18 +8,19 @@ import (
     "fmt"
     "gopkg.in/cheggaaa/pb.v1"
     "time"
-    "math/rand"
     "sync"
+    "strconv"
 )
 
 type Progress struct {
-    Index               string   `json:"index,omitempty"`
+    Index               int   `json:"index,omitempty"`
     // IP                  string   `json:"ip,omitempty"`
     Percentage          float32   `json:"percentage,omitempty"`
+    Percent             int   `json:"percent,omitempty"`
     // TimeCompleted       string   `json:"time_completed,omitempty"`
 }
 
-var progress Progress 
+var progress [3]Progress 
 
 func ProgressBarSingle(){
     count := 100
@@ -36,22 +37,26 @@ func ProgressBarSingle(){
 
 func SendProgress(w http.ResponseWriter, r *http.Request) {
     params := mux.Vars(r)
-
-    fmt.Println(params)
-    err := json.NewDecoder(r.Body).Decode(&progress)
+    var ind int
+    ind,_=strconv.Atoi(params["id"])
+    // ind=int(params["id"])
+    fmt.Println(params["id"])
+    err := json.NewDecoder(r.Body).Decode(&progress[ind])
     if err != nil {
         panic(err)
     }
     // progress.Percentage = params["percentage"]
-    progress.Index=params["id"]
-    fmt.Println("Index: "progress.Index)
+    progress[ind].Index=ind
+    progress[ind].Percent=int(progress[ind].Percentage)
+    fmt.Println( progress[ind].Index)
     // fmt.Println(progress.IP)
-    fmt.Println("Percentage: "+progress.Percentage)
-
-    ProgressBarSingle()
+    fmt.Println( progress[ind].Percentage)
+    
 }
 
-
+func StartProgressBar(w http.ResponseWriter, r *http.Request) {
+    ProgressBarsMultiple()
+}
 
 func ProgressBarsMultiple(){
     
@@ -65,17 +70,32 @@ func ProgressBarsMultiple(){
     }
     // update bars
     wg := new(sync.WaitGroup)
+    var i int
+    i=0
+    var cur_prog = [3]int{0,0,0} 
+        
     for _, bar := range []*pb.ProgressBar{first, second, third} {
         wg.Add(1)
-        go func(cb *pb.ProgressBar) {
-            for n := 0; n < 100; n++ {
-                cb.Increment()
-                time.Sleep(time.Millisecond * time.Duration(rand.Intn(100)))
+        go func(cb *pb.ProgressBar,i int) {
+            for true {
+                // fmt.Println(progress[i].Percent)
+                if progress[i].Percent==100{
+                    break
+                }
+                if progress[i].Percent > cur_prog[i] {
+                    for x:=0; x<(progress[i].Percent-cur_prog[i]);x++{
+                        cb.Increment()
+                    }
+                    cur_prog[i]=progress[i].Percent
+                }
             }
+            
             cb.Finish()
             wg.Done()
-        }(bar)
+            }(bar,i)
+        i+=1
     }
+    
     wg.Wait()
     // close pool
     pool.Stop()
@@ -87,6 +107,8 @@ func main() {
     router.HandleFunc("/progress/{id}", SendProgress).Methods("POST")
     //router.HandleFunc("/people/{id}", GetPerson).Methods("GET")
     //router.HandleFunc("/people/{id}", DeletePerson).Methods("DELETE")
+    router.HandleFunc("/start", StartProgressBar).Methods("GET")
     log.Fatal(http.ListenAndServe(":9517", router))
+    // ProgressBarsMultiple()
 }
 
