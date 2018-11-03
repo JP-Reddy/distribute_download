@@ -14,6 +14,7 @@
 #include <string.h>
 #include <cstring>
 #include <fcntl.h>
+#include <signal.h>
 
 using std::cout;
 using std::endl;
@@ -112,14 +113,31 @@ void send_file(int writefd,std::string fs_name){
 
 }
 
+void signal_handler(int sig)
+{
+	int n = sysconf(_SC_OPEN_MAX);
+	for(int i = 0; i < n; i++)
+	close(i);
+	execl("./slave", (char *)0);
+}
+
+static void exit_cleanup(void)
+{
+	int n = sysconf(_SC_OPEN_MAX);
+	for(int i = 0; i < n; i++)
+	close(i);
+}
+
 int main()
 {
 	// char * url = "http://dl1.irani-dl.com/serial/The%20Legend%20of%20Korra/Season%201/The%20Legend%20of%20Korra-S01E01E02.720p.WEB-DL.x264(www.irani-dl.ir).mkv";
 	// char * range = "0-100";
 	// char * index = "0";
 	// download_file(url, range, index, client);
+	atexit(exit_cleanup);
 
 	// Descriptors to receive the url details
+	signal(SIGALRM, signal_handler);
 	int readfd,connfd_read;
 	struct sockaddr_in addr_read,client_read;
 
@@ -165,9 +183,14 @@ int main()
 		char *buf_temp=buf;
 		read(connfd_read,buf,12);
 
+		//Setting the alarm so that if this connection fails, it 
+		//calls the handler which will clean up and restart the program.
+		alarm(10);
+
 		// Accept connection to write on 9516
 		len=sizeof(client_write);
 		connfd_write=accept(writefd,(struct sockaddr *) &client_write,&len);
+		alarm(0);
 		cout<<"[SLAVE] "<<"Connection accepted on 9516"<<endl;
 
 /*		int *url_length=(int *)buf;
