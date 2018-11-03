@@ -22,7 +22,6 @@ int main()
 	for(;;)
 	{
 		
-		std::cout<<"Entered\n";
 		len=sizeof(client);
 		connfd=accept(sock0,(struct sockaddr *) &client,&len);
 		// write(connfd,"HELL",4);
@@ -30,15 +29,7 @@ int main()
 		char *buf_temp=buf;
 		read(connfd,buf,12);
 
-/*		for(int i=0;i<3;i++){
-			len=(int *)buf;
-			std::cout<<*len<<std::endl;
-			buf=buf+4;			
-		}
-*/
-		std::cout<<"Read\n";
-
-		int *url_length=(int *)buf;
+/*		int *url_length=(int *)buf;
 		std::cout<<*url_length<<std::endl;
 		buf=buf+4;			
 		int *range_length=(int *)buf;
@@ -46,15 +37,17 @@ int main()
 		buf=buf+4;			
 		int *index_length=(int *)buf;
 		std::cout<<*index_length<<std::endl;
-
-/*		int *url_length,*range_length,*index_length;
+*/
+		int *url_length=new int;
+		int *range_length=new int;
+		int *index_length=new int;
 		memcpy(url_length,buf,4);
 		buf=buf+4;			
 		memcpy(range_length,buf,4);
 		buf=buf+4;			
 		memcpy(index_length,buf,4);
 
-*/		int total_length=*url_length+*range_length+*index_length;
+		int total_length=*url_length+*range_length+*index_length;
 
 		int n;
 		char *new_buf=new char[total_length];
