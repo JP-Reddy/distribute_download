@@ -75,29 +75,39 @@ int main(int argc, char * argv[])
         
     std::cout<<buf<<std::endl;
 
-    // close(writefd);  
-//     if( (readfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
-//     {
-//         std::cout<<"Not able to open socket."<<std::endl;
-//         exit(0);
-//     }
-//     else
-//     {
-//         std::cout<<"Socket created to get the file data.";
-//     }
+    close(writefd);  
 
-//     memset(&servaddr, 0, sizeof(servaddr));
+/*    if( (readfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
+    {
+        std::cout<<"Not able to open socket."<<std::endl;
+        exit(0);
+    }
+    else
+    {
+        std::cout<<"Socket created to get the file data.";
+    }
 
-//     servaddr.sin_family = AF_INET;
-//     servaddr.sin_port = htons(9516);
-//     inet_pton(AF_INET, "192.168.0.6", &servaddr.sin_addr);    
-// 	//Sending the masters ip address. 
+    memset(&servaddr, 0, sizeof(servaddr));
+
+    servaddr.sin_family = AF_INET;
+    servaddr.sin_port = htons(9516);
+    inet_pton(AF_INET, "192.168.0.6", &servaddr.sin_addr);    
+	//Sending the masters ip address. 
     
-//     if( (connect(readfd, (sockaddr*)&servaddr, sizeof(servaddr))) < 0)
-//     {
-//         cout<<"Connect error for receiving"<<endl;
-//         exit(0);
-//     }
+    if( (connect(readfd, (sockaddr*)&servaddr, sizeof(servaddr))) < 0)
+    {
+        cout<<"Connect error for receiving"<<endl;
+        exit(0);
+    }
+    
+    // Receive checksum first before getting the actual file.
+    int checksum_size;
+    char checksum[1000];
+    if((checksum_size = read(readfd,checksum,sizeof(checksum)))<=0){
+        printf("Checksum Error\n");
+        exit(0);
+    }
 
-
+    
+*/
 }
