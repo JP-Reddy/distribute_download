@@ -2,7 +2,7 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
-#include <unistd.h>
+
 
 //C++ headers. 
 #include <string>
@@ -13,6 +13,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include<fcntl.h>
+#include <unistd.h>
 
 using std::cout;
 using std::endl;
@@ -54,7 +55,8 @@ void receive_file(int readfd,const char*url,const char*index)
     std::string filename_string  = get_file_name(url,index);
     const char * filename = filename_string.c_str();
     cout<<"filename :"<<filename<<endl;
-    int file_fd = open(filename,O_WRONLY | O_CREAT | O_TRUNC);
+    
+    int file_fd = open(filename,O_WRONLY | O_CREAT | O_TRUNC, 0777);
     if( file_fd < 0)
     {
         cout<<"Error opening file"<<endl;
@@ -79,7 +81,7 @@ void receive_file(int readfd,const char*url,const char*index)
 //1 - ip address, 2 - url, 3 - range, 4 - index (for argv)
 int main(int argc, char * argv[])
 {
-    cout<<"args 0:"<<argv[0]<<endl;
+    // cout<<"args 0:"<<argv[0]<<endl;
     int writefd,readfd, n;
     struct sockaddr_in servaddr_write, servaddr_read;     
 
@@ -88,20 +90,20 @@ int main(int argc, char * argv[])
         std::cout<<"Not able to open socket."<<std::endl;
         exit(0);
     }
-    else
-    {
-        std::cout<<"Socket created.";
-    }
+    // else
+    // {
+    //     std::cout<<"Socket created.";
+    // }
 
     if( (readfd = socket(AF_INET, SOCK_STREAM, 0)) < 0)
     {
         std::cout<<"Not able to open socket."<<std::endl;
         exit(0);
     }
-    else
-    {
-        std::cout<<"Socket created.";
-    }
+    // else
+    // {
+    //     std::cout<<"Socket created.";
+    // }
 
     memset(&servaddr_write, 0, sizeof(servaddr_write));
 
@@ -118,10 +120,10 @@ int main(int argc, char * argv[])
         cout<<"write connect error"<<endl;
         exit(0);
     }
-    else
-    {
-        cout<<"write Connected"<<endl;
-    }
+    // else
+    // {
+    //     cout<<"write Connected"<<endl;
+    // }
 
     if( (connect(readfd, (sockaddr*)&servaddr_read, sizeof(servaddr_read))) < 0)
     {
@@ -129,10 +131,10 @@ int main(int argc, char * argv[])
         exit(0);
     }
 
-    else
-    {
-        cout<<"read Connected"<<endl;
-    }
+    // else
+    // {
+    //     cout<<"read Connected"<<endl;
+    // }
 
     
     download_url url_struct;
@@ -171,22 +173,16 @@ int main(int argc, char * argv[])
     {
         cout<<"Error writing.";
     }
-    else
-    {
-        cout<<"bytes written:"<<bytes<<endl;
-    }
+    // else
+    // {
+    //     cout<<"bytes written:"<<bytes<<endl;
+    // }
     delete[] buffer;
     close(writefd);  
 
-    receive_file(readfd,url,index);
     //Getting back the chunks of file. 
+    receive_file(readfd,url,index);
     
-
-/*int checksum_size;
-    char checksum[1000];
-    if((checksum_size = read(readfd,checksum,sizeof(checksum)))<=0){
-        printf("Checksum Error\n");
-        exit(0);
-    }*/
+    cout<<"index :"<<index<<"exited"<<endl;
 
 }
