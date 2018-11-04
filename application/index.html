@@ -1,0 +1,22 @@
+<head>
+    <link rel="stylesheet" href="index.css">
+    <script type="text/javascript">// <![CDATA[
+        function loading() {
+            $("#loading").show();
+            $("#content").hide();
+        }
+    // ]]></script>
+</head>
+
+<body>
+    <div id="loading"></div>
+    <div id="content">
+        <h3>Downloading</h3>
+        <p>
+            <form action="." method="POST">
+                <input type="text" name="Enter the download URL" placeholder="URL">
+                <input type="submit" name="Download" value="Submit" onclick="loading();">
+            </form>
+        </p>
+    </div>
+</body>
