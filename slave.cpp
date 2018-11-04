@@ -21,52 +21,52 @@ using std::endl;
 
 #define LENGTH 1024*1024
 
-#define TIMEOPT CURLINFO_TOTAL_TIME
-#define MINIMAL_PROGRESS_FUNCTIONALITY_INTERVAL  2
+// #define TIMEOPT CURLINFO_TOTAL_TIME
+// #define MINIMAL_PROGRESS_FUNCTIONALITY_INTERVAL  2
 
-struct progress {
-  double lastruntime; 
-  CURL *curl;
-};
+// struct progress {
+//   double lastruntime; 
+//   CURL *curl;
+// };
 
-char* index_global ;
-std::string index_global_string;
+// char* index_global ;
+// std::string index_global_string;
 
 
-int xferinfo(void *clientp,   curl_off_t dltotal,   curl_off_t dlnow,   curl_off_t ultotal,   curl_off_t ulnow)
-{
-	struct progress*main_prog = (struct progress *)clientp;
-	CURL *curl = main_prog->curl;
-	double curtime = 0;
-	CURLcode res;
-	curl_easy_getinfo(curl, TIMEOPT, &curtime);
-	if((curtime - main_prog->lastruntime) >= 50)
-	{
-		main_prog->lastruntime = curtime;
-		CURL *curl_post = curl_easy_init();
-		if(curl_post){
-			float percentage = (dlnow*1.0)/dltotal;
-			std::string percentage_string = std::to_string(percentage);
-			std::string jsonObj_string = "{\"percentage\" : " +  percentage_string +"}";
-			//std::cout<<jsonObj_string<<std::endl;
-			const char *jsonObj = jsonObj_string.c_str();
-			/*fprintf(stderr, "UP: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
-				"  DOWN: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
-				"\r\n",
-				ulnow, ultotal, dlnow, dltotal);*/
-			std::string curl_opt_string = "10.16.160.74:9517/progress/"+index_global_string;
-			curl_easy_setopt(curl_post, CURLOPT_URL, curl_opt_string.c_str());
-			curl_easy_setopt(curl_post, CURLOPT_POSTFIELDS, jsonObj);
-			//curl_easy_setopt(curl_post, CURLOPT_POST, 1L);
-			res = curl_easy_perform(curl_post);
-			if(res != CURLE_OK)
-			std::cout<<curl_easy_strerror(res)<<std::endl;
-		}
-		else
-		std::cout<<"Error";
-		} 
-return 0;
-}
+// int xferinfo(void *clientp,   curl_off_t dltotal,   curl_off_t dlnow,   curl_off_t ultotal,   curl_off_t ulnow)
+// {
+// 	struct progress*main_prog = (struct progress *)clientp;
+// 	CURL *curl = main_prog->curl;
+// 	double curtime = 0;
+// 	CURLcode res;
+// 	curl_easy_getinfo(curl, TIMEOPT, &curtime);
+// 	if((curtime - main_prog->lastruntime) >= 50)
+// 	{
+// 		main_prog->lastruntime = curtime;
+// 		CURL *curl_post = curl_easy_init();
+// 		if(curl_post){
+// 			float percentage = (dlnow*1.0)/dltotal;
+// 			std::string percentage_string = std::to_string(percentage);
+// 			std::string jsonObj_string = "{\"percentage\" : " +  percentage_string +"}";
+// 			//std::cout<<jsonObj_string<<std::endl;
+// 			const char *jsonObj = jsonObj_string.c_str();
+// 			/*fprintf(stderr, "UP: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
+// 				"  DOWN: %" CURL_FORMAT_CURL_OFF_T " of %" CURL_FORMAT_CURL_OFF_T
+// 				"\r\n",
+// 				ulnow, ultotal, dlnow, dltotal);*/
+// 			std::string curl_opt_string = "10.16.160.74:9517/progress/"+index_global_string;
+// 			curl_easy_setopt(curl_post, CURLOPT_URL, curl_opt_string.c_str());
+// 			curl_easy_setopt(curl_post, CURLOPT_POSTFIELDS, jsonObj);
+// 			//curl_easy_setopt(curl_post, CURLOPT_POST, 1L);
+// 			res = curl_easy_perform(curl_post);
+// 			if(res != CURLE_OK)
+// 			std::cout<<curl_easy_strerror(res)<<std::endl;
+// 		}
+// 		else
+// 		std::cout<<"Error";
+// 		} 
+// return 0;
+// }
 size_t write_data(void *ptr, size_t size, size_t nmemb, FILE *stream) {
 	size_t written = fwrite(ptr, size, nmemb, stream);
 	return written;
@@ -104,21 +104,21 @@ std::string download_file(char * url, char * range, char * index, char * client_
 	cout<<"downloading to outfilename:"<<outfilename<<endl;
 	cout<<"range: "<<range<<endl;
 	
-	struct progress p;
+//	struct progress p;
 	curl = curl_easy_init();
 	 
 	if (curl) 
 	{
-		p.lastruntime = 0;
-		p.curl = curl;
+		// p.lastruntime = 0;
+		// p.curl = curl;
 		fw = fopen(outfilename,"wb");
 		curl_easy_setopt(curl, CURLOPT_URL, url);
 
 		curl_easy_setopt(curl, CURLOPT_BUFFERSIZE, 100); 
 		curl_easy_setopt(curl, CURLOPT_RANGE, range);
 		curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
-		curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, xferinfo);
-		curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &p);
+		// curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, xferinfo);
+		// curl_easy_setopt(curl, CURLOPT_XFERINFODATA, &p);
 		curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
 		curl_easy_setopt(curl, CURLOPT_WRITEDATA, fw);
 		res = curl_easy_perform(curl);
@@ -222,10 +222,10 @@ int main(int argc, char * argv[])
 	new_buf+=*range_length;
 	memcpy(index,new_buf,*index_length);
 
-		//Index_global necessary for making the POST request.
-		memcpy(index_global,index,*index_length);
+		// //Index_global necessary for making the POST request.
+		// memcpy(index_global,index,*index_length);
 
-		index_global_string = std::string(index_global);
+		// index_global_string = std::string(index_global);
 /*		url=(char *)new_buf;
 		new_buf=new_buf+(*url_length)+1;
 		range=(char *)new_buf;		
@@ -241,14 +241,12 @@ int main(int argc, char * argv[])
 
 		close(connfd_read);
 		//Downloading the actual file.
-		std::string file_name = download_file(url, range, index, client_read);
+		std::string file_name = download_file(url, range, index, client_ip);
 		// std::string file_name="/home/ubuntu/JP/hackpes/10.16.160.76.part0-bcompare-4.2.8.23479_amd64.deb";
 		std::cout<<"[SLAVE] Sending file back to master\n";
 		send_file(connfd_write,file_name);
 		close(connfd_write);
-	}
-	close(readfd);
-	close(writefd);
+	
 
 	
 }

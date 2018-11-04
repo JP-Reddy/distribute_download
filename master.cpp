@@ -105,12 +105,12 @@ int main()
     cout<<"Enter the url to download: "<<endl;
     
     // std::cout<<"Enter the download url:"<<std::endl;
-    // std::cin>>url_struct.url;
-    url_struct.url = "https://www.scootersoftware.com/bcompare-4.2.8.23479_amd64.deb";
+    std::cin>>url_struct.url;
+    // url_struct.url = "http://www.inkjettips.com/chapter2.pdf";
 
     int file_size = get_file_size(url_struct);
     // cout<<file_size<<endl;
-    std::vector< std::string > ip_address = {"10.16.160.74", "10.16.160.72", "10.10.103.194"};
+    std::vector< std::string > ip_address = { "10.16.160.74", "10.16.160.76", "10.16.160.72"};
 
     int num_slaves = ip_address.size();
     int size_per_chunk = file_size / num_slaves;
